@@ -3,27 +3,27 @@ use std::hash::{Hash, Hasher};
 pub trait BucketKeyReq: Hash + Eq {}
 impl<T: Hash + Eq> BucketKeyReq for T {}
 
-const BUCKET_LOAD_FACTOR_MAX: f64 = 1.0;
-const BUCKET_RESIZE_LOAD_FACTOR: f64 = 0.5;
+const DEFAULT_BUCKET_LOAD_FACTOR_MAX: f64 = 1.0;
+const DEFAULT_BUCKET_RESIZE_LOAD_FACTOR: f64 = 0.5;
 
 #[derive(Debug)]
-pub struct BucketHashmap<K: BucketKeyReq, V> {
+pub struct BucketSeperateChainHashMap<K: BucketKeyReq, V> {
     entries: usize,
     load_factor_max: f64,
     resize_load_factor: f64,
     buckets: Vec<Vec<(K, V)>>,
 }
-impl<K: BucketKeyReq, V> Default for BucketHashmap<K, V> {
+impl<K: BucketKeyReq, V> Default for BucketSeperateChainHashMap<K, V> {
     fn default() -> Self {
         Self {
             entries: 0,
-            load_factor_max: BUCKET_LOAD_FACTOR_MAX,
-            resize_load_factor: BUCKET_RESIZE_LOAD_FACTOR,
+            load_factor_max: DEFAULT_BUCKET_LOAD_FACTOR_MAX,
+            resize_load_factor: DEFAULT_BUCKET_RESIZE_LOAD_FACTOR,
             buckets: vec![Default::default()],
         }
     }
 }
-impl<K: BucketKeyReq + Clone, V: Clone> Clone for BucketHashmap<K, V> {
+impl<K: BucketKeyReq + Clone, V: Clone> Clone for BucketSeperateChainHashMap<K, V> {
     fn clone(&self) -> Self {
         Self {
             entries: self.entries,
@@ -34,7 +34,7 @@ impl<K: BucketKeyReq + Clone, V: Clone> Clone for BucketHashmap<K, V> {
     }
 }
 
-impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
+impl<K: BucketKeyReq, V> BucketSeperateChainHashMap<K, V> {
     fn calculate_bucket_index(&self, k: &K) -> usize {
         // First calculate the hash.
         let mut hasher = std::hash::DefaultHasher::new();
@@ -52,6 +52,8 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
         let new_size = new_size as usize;
 
         let mut new_map = Self::with_capacity(new_size.max(1));
+        new_map.resize_load_factor = self.resize_load_factor;
+        new_map.load_factor_max = self.load_factor_max;
 
         // Drain self into the new map.
         for mut v in self.buckets.drain(..) {
@@ -59,8 +61,6 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
                 new_map.insert(k, v);
             }
         }
-
-        // println!("got resize event to {new_size}");
 
         // Replace the map.
         *self = new_map;
@@ -95,7 +95,7 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
 }
 
 // Use this block to hold the 'std' methods.
-impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
+impl<K: BucketKeyReq, V> BucketSeperateChainHashMap<K, V> {
     /// Create a new hashmap.
     pub fn new() -> Self {
         Self::default()
@@ -103,7 +103,7 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
 
     /// Construct a hashmap with at least this capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        let bucket_count = (capacity as f64 / BUCKET_LOAD_FACTOR_MAX).ceil() as usize;
+        let bucket_count = (capacity as f64 / DEFAULT_BUCKET_LOAD_FACTOR_MAX).ceil() as usize;
         let mut buckets = Vec::with_capacity(bucket_count);
         for _ in 0..bucket_count {
             buckets.push(Default::default());
@@ -205,8 +205,8 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
 mod test {
     use super::*;
     #[test]
-    fn test_bucket_insert() {
-        let mut h = BucketHashmap::<u64, u64>::new();
+    fn test_bucket_seperate_chain() {
+        let mut h = BucketSeperateChainHashMap::<u64, u64>::new();
         h.insert(300, 3);
         h.insert(500, 8);
         assert!(h.contains_key(&300));
@@ -214,7 +214,7 @@ mod test {
         assert!(!h.contains_key(&8));
         for i in 0..32 {
             h.insert(i, i);
-            println!("h size: {}", h.len());
+            // println!("h size: {}", h.len());
             // h.debug_info();
         }
         assert_eq!(h.len(), 34);
@@ -228,7 +228,7 @@ mod test {
         assert_eq!(z.len(), 33);
 
         struct NonClone {}
-        let non_clonable = BucketHashmap::<u64, NonClone>::new();
+        let non_clonable = BucketSeperateChainHashMap::<u64, NonClone>::new();
         // let z = non_clonable.clone();
         let _ = non_clonable;
     }
@@ -237,7 +237,7 @@ mod test {
     fn test_fuzz() {
         use rand::prelude::*;
         let mut rng = rand::thread_rng();
-        let mut h = BucketHashmap::<u64, u64>::new();
+        let mut h = BucketSeperateChainHashMap::<u64, u64>::new();
         let mut r = std::collections::HashMap::<u64, u64>::new();
 
         // Insert 10000 into both.
