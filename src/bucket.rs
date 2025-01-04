@@ -20,22 +20,19 @@ pub struct BucketHashmap<K: BucketKeyReq, V> {
     buckets: Vec<BucketEntry<K, V>>,
 }
 
-const BUCKET_DEFAULT_CAPACITY: usize = 8;
 const BUCKET_LOAD_FACTOR_MAX: f64 = 1.0;
 const BUCKET_RESIZE_LOAD_FACTOR: f64 = 0.5;
 
 impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
+    /// (std) Create a new hashmap.
     pub fn new() -> Self {
-        let mut buckets = Vec::with_capacity(BUCKET_DEFAULT_CAPACITY);
-        for _ in 0..BUCKET_DEFAULT_CAPACITY {
-            buckets.push(BucketEntry::default());
-        }
         Self {
-            buckets,
+            buckets: vec![Default::default()],
             entries: 0,
         }
     }
 
+    /// (std) Construct a hashmap with at least this capacity.
     pub fn with_capacity(capacity: usize) -> Self {
         let bucket_count = (capacity as f64 * BUCKET_LOAD_FACTOR_MAX).ceil() as usize;
         let mut buckets = Vec::with_capacity(bucket_count);
@@ -56,7 +53,8 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
         h.rem_euclid(self.buckets.len() as u64) as usize
     }
 
-    fn reserve(&mut self, additional: usize) {
+    /// (std) Reserves at least this additional size.
+    pub fn reserve(&mut self, additional: usize) {
         self.resize_to(self.entries + additional);
     }
 
@@ -83,7 +81,7 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
         *self = new_map;
     }
 
-    /// Insert a key and value pair into the map.
+    /// (std) Insert a key.
     pub fn insert(&mut self, key: K, value: V) {
         let bucket_index = self.calculate_bucket_index(&key);
         // We found the bucket.
@@ -104,6 +102,7 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
         self.resize_to(self.entries);
     }
 
+    /// (std) Check if a key exists.
     pub fn contains_key(&self, k: &K) -> bool {
         let bucket_index = self.calculate_bucket_index(k);
         // We found the bucket.
