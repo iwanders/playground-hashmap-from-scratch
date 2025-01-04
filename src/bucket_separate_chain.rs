@@ -170,6 +170,11 @@ impl<K: BucketKeyReq, V> BucketSeperateChainHashMap<K, V> {
         self.entries
     }
 
+    /// Return if the map is empty.
+    pub fn is_empty(&self) -> bool {
+        self.entries == 0
+    }
+
     /// Remove an entry from the hashmap.
     pub fn remove(&mut self, key: &K) -> Option<V> {
         let bucket_index = self.calculate_bucket_index(&key);
