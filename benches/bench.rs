@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 use criterion::{criterion_group, criterion_main, Criterion};
-use hashmap_from_scratch::BucketSeperateChainHashMap;
+use hashmap_from_scratch::{BucketInChainHashMap, BucketSeperateChainHashMap};
 use std::collections::HashMap;
 use std::hint::black_box;
 
@@ -52,18 +52,34 @@ default_benchmark!(
     100_000
 );
 
-type BucketHashmapU64U64 = BucketSeperateChainHashMap<u64, u64>;
+type BucketHashmapSeparateU64U64 = BucketSeperateChainHashMap<u64, u64>;
 default_benchmark!(
     criterion_bucket_separate_1k,
-    BucketHashmapU64U64,
+    BucketHashmapSeparateU64U64,
     "BucketSeparateCHain 1k",
     1000,
     1_000
 );
 default_benchmark!(
     criterion_bucket_separate_100k,
-    BucketHashmapU64U64,
+    BucketHashmapSeparateU64U64,
     "BucketSeparateCHain 100k",
+    1,
+    100_000
+);
+
+type BucketHashmapU64U64 = BucketInChainHashMap<u64, u64>;
+default_benchmark!(
+    criterion_bucket_1k,
+    BucketHashmapU64U64,
+    "BucketCHain 1k",
+    1000,
+    1_000
+);
+default_benchmark!(
+    criterion_bucket_100k,
+    BucketHashmapU64U64,
+    "BucketCHain 100k",
     1,
     100_000
 );
@@ -74,6 +90,8 @@ criterion_group!(
     criterion_std_100k,
     criterion_bucket_separate_1k,
     criterion_bucket_separate_100k,
+    criterion_bucket_1k,
+    criterion_bucket_100k,
 );
 
 criterion_main!(benches);
