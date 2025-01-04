@@ -11,6 +11,9 @@ pub struct BucketSeperateChainHashMap<K: BucketKeyReq, V> {
     entries: usize,
     load_factor_max: f64,
     resize_load_factor: f64,
+    // low hanging fruit is to make this a smallvec of 1, such that if there's no hash collition it's nice
+    // and colocated in the main vector. The branch in-bucket-head has that implemented and that
+    // brings the small 1k test within a percent of std::collection::Hashmap
     buckets: Vec<Vec<(K, V)>>,
 }
 impl<K: BucketKeyReq, V> Default for BucketSeperateChainHashMap<K, V> {
