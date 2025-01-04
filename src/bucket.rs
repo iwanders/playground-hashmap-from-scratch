@@ -3,14 +3,36 @@ use std::hash::{Hash, Hasher};
 pub trait BucketKeyReq: Hash + Eq {}
 impl<T: Hash + Eq> BucketKeyReq for T {}
 
-#[derive(Debug, Default)]
-pub struct BucketHashmap<K: BucketKeyReq, V> {
-    entries: usize,
-    buckets: Vec<Vec<(K, V)>>,
-}
-
 const BUCKET_LOAD_FACTOR_MAX: f64 = 1.0;
 const BUCKET_RESIZE_LOAD_FACTOR: f64 = 0.5;
+
+#[derive(Debug)]
+pub struct BucketHashmap<K: BucketKeyReq, V> {
+    entries: usize,
+    load_factor_max: f64,
+    resize_load_factor: f64,
+    buckets: Vec<Vec<(K, V)>>,
+}
+impl<K: BucketKeyReq, V> Default for BucketHashmap<K, V> {
+    fn default() -> Self {
+        Self {
+            entries: 0,
+            load_factor_max: BUCKET_LOAD_FACTOR_MAX,
+            resize_load_factor: BUCKET_RESIZE_LOAD_FACTOR,
+            buckets: vec![Default::default()],
+        }
+    }
+}
+impl<K: BucketKeyReq + Clone, V: Clone> Clone for BucketHashmap<K, V> {
+    fn clone(&self) -> Self {
+        Self {
+            entries: self.entries,
+            load_factor_max: self.load_factor_max,
+            resize_load_factor: self.resize_load_factor,
+            buckets: self.buckets.clone(),
+        }
+    }
+}
 
 impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
     fn calculate_bucket_index(&self, k: &K) -> usize {
@@ -23,13 +45,13 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
 
     fn resize_to(&mut self, new_entries: usize) {
         let new_factor = new_entries as f64 / self.buckets.len() as f64;
-        if new_factor < BUCKET_LOAD_FACTOR_MAX {
+        if new_factor < self.load_factor_max {
             return; // no work to do.
         }
-        let new_size = (new_entries as f64 * (1.0 / BUCKET_RESIZE_LOAD_FACTOR)).ceil();
+        let new_size = (new_entries as f64 * (1.0 / self.resize_load_factor)).ceil();
         let new_size = new_size as usize;
 
-        let mut new_map = Self::with_capacity(new_size);
+        let mut new_map = Self::with_capacity(new_size.max(1));
 
         // Drain self into the new map.
         for mut v in self.buckets.drain(..) {
@@ -38,14 +60,18 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
             }
         }
 
-        println!("got resize event to {new_size}");
+        // println!("got resize event to {new_size}");
 
         // Replace the map.
         *self = new_map;
     }
 
+    pub fn load_factor(&self) -> f64 {
+        self.entries as f64 / self.buckets.len() as f64
+    }
+
     pub fn debug_info(&self) {
-        let load = self.entries as f64 / self.buckets.len() as f64;
+        let load = self.load_factor();
         println!(" load: {load}");
         println!(" buckets: {}", self.buckets.len());
         println!(" entries: {}", self.entries);
@@ -53,16 +79,26 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
             println!(" b[{i}]: {}", b.len());
         }
     }
+
+    pub fn load_factor_max(&self) -> f64 {
+        self.load_factor_max
+    }
+    pub fn resize_load_factor(&self) -> f64 {
+        self.resize_load_factor
+    }
+    pub fn set_load_factor_max(&mut self, v: f64) {
+        self.load_factor_max = v;
+    }
+    pub fn set_resize_load_factor(&mut self, v: f64) {
+        self.resize_load_factor = v;
+    }
 }
 
 // Use this block to hold the 'std' methods.
 impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
     /// Create a new hashmap.
     pub fn new() -> Self {
-        Self {
-            buckets: vec![Default::default()],
-            entries: 0,
-        }
+        Self::default()
     }
 
     /// Construct a hashmap with at least this capacity.
@@ -74,7 +110,7 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
         }
         Self {
             buckets,
-            entries: 0,
+            ..Default::default()
         }
     }
 
@@ -186,6 +222,15 @@ mod test {
         assert!(h.remove(&300).is_none());
         assert_eq!(h.len(), 33);
         assert!(!h.contains_key(&300));
+
+        let z = h.clone();
+        assert!(!z.contains_key(&300));
+        assert_eq!(z.len(), 33);
+
+        struct NonClone {}
+        let non_clonable = BucketHashmap::<u64, NonClone>::new();
+        // let z = non_clonable.clone();
+        let _ = non_clonable;
     }
 
     #[test]
