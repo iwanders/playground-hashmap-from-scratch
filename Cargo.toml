@@ -5,3 +5,7 @@ edition = "2021"
 license = "BSD-3-Clause"
 
 [dependencies]
+
+
+[dev-dependencies]
+rand = "0.8.5"

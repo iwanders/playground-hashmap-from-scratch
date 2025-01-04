@@ -137,6 +137,21 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
             None
         }
     }
+
+    /// Get a value by reference.
+    pub fn get(&self, key: &K) -> Option<&V> {
+        let bucket_index = self.calculate_bucket_index(&key);
+        if let Some(index_in_bucket) = self.buckets[bucket_index]
+            .iter()
+            .position(|(bk, _)| *bk == *key)
+        {
+            self.buckets[bucket_index]
+                .get(index_in_bucket)
+                .map(|(_, v)| v)
+        } else {
+            None
+        }
+    }
 }
 
 #[cfg(test)]
@@ -157,7 +172,59 @@ mod test {
         }
         assert_eq!(h.len(), 34);
         assert!(h.remove(&300).is_some());
+        assert!(h.remove(&300).is_none());
         assert_eq!(h.len(), 33);
         assert!(!h.contains_key(&300));
+    }
+
+    #[test]
+    fn test_fuzz() {
+        use rand::prelude::*;
+        let mut rng = rand::thread_rng();
+        let mut h = BucketHashmap::<u64, u64>::new();
+        let mut r = std::collections::HashMap::<u64, u64>::new();
+
+        // Insert 10000 into both.
+        for _ in 0..10000 {
+            let k: u64 = rng.gen();
+            let v: u64 = rng.gen();
+            h.insert(k, v);
+            r.insert(k, v);
+            assert!(h.contains_key(&k));
+            assert!(r.contains_key(&k));
+            assert_eq!(r.len(), h.len());
+        }
+
+        for _ in 0..10000 {
+            let to_add: bool = rng.gen();
+            if to_add {
+                let k: u64 = rng.gen();
+                let v: u64 = rng.gen();
+                h.insert(k, v);
+                r.insert(k, v);
+                assert!(h.contains_key(&k));
+                assert!(r.contains_key(&k));
+                assert_eq!(r.len(), h.len());
+            } else {
+                // Find a value from the reference hashmap.
+                let i = rng.gen_range(0..r.len());
+                let k = *r.keys().skip(i).next().unwrap();
+                let r_v = r.remove(&k);
+                let h_v = h.remove(&k);
+                assert_eq!(r_v, h_v);
+                assert!(!h.contains_key(&k));
+                assert!(!r.contains_key(&k));
+                assert_eq!(r.len(), h.len());
+            }
+        }
+
+        // Verify that the hashmaps contain equal things.
+        for (k, v) in r.iter() {
+            if let Some(hv) = h.get(k) {
+                assert_eq!(*v, *hv);
+            } else {
+                assert!(false);
+            }
+        }
     }
 }
