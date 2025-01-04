@@ -67,7 +67,7 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
 
     /// Construct a hashmap with at least this capacity.
     pub fn with_capacity(capacity: usize) -> Self {
-        let bucket_count = (capacity as f64 * BUCKET_LOAD_FACTOR_MAX).ceil() as usize;
+        let bucket_count = (capacity as f64 / BUCKET_LOAD_FACTOR_MAX).ceil() as usize;
         let mut buckets = Vec::with_capacity(bucket_count);
         for _ in 0..bucket_count {
             buckets.push(Default::default());
@@ -81,6 +81,17 @@ impl<K: BucketKeyReq, V> BucketHashmap<K, V> {
     /// Reserves at least this additional size.
     pub fn reserve(&mut self, additional: usize) {
         self.resize_to(self.entries + additional);
+    }
+
+    /// Shrinks to at least the specified capacity.
+    pub fn shrink_to(&mut self, min_capacity: usize) {
+        let at_least = self.entries.max(min_capacity);
+        self.resize_to(at_least);
+    }
+
+    /// Shrinks to minum value that holds the current size
+    pub fn shrink_to_fit(&mut self) {
+        self.resize_to(self.entries);
     }
 
     /// Insert a key.
