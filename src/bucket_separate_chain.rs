@@ -23,16 +23,44 @@ pub trait BucketInterface<K, V>: Sized {
     fn vec_push(&mut self, value: (K, V));
 }
 
-pub trait BucketContainerReq<K, V>:
-    std::ops::Index<usize> + BucketInterface<K, V> + Default
-{
-}
-impl<K, V, T: std::ops::Index<usize> + BucketInterface<K, V> + Default> BucketContainerReq<K, V>
-    for T
-{
-}
+pub trait BucketContainerReq<K, V>: BucketInterface<K, V> + Default {}
+impl<K, V, T: BucketInterface<K, V> + Default> BucketContainerReq<K, V> for T {}
 
 impl<K: BucketKeyReq, V> BucketInterface<K, V> for Vec<(K, V)> {
+    fn len(&self) -> usize {
+        self.len()
+    }
+    fn drain_into_map<M: HashMapInsertTrait<K, V>>(&mut self, map: &mut M) {
+        for (k, v) in self.drain(..) {
+            map.map_insert(k, v);
+        }
+    }
+    fn vec_iter_mut<'a>(&'a mut self) -> impl std::iter::Iterator<Item = &'a mut (K, V)>
+    where
+        K: 'a,
+        V: 'a,
+    {
+        self.iter_mut()
+    }
+    fn vec_iter<'a>(&'a self) -> impl std::iter::Iterator<Item = &'a (K, V)>
+    where
+        K: 'a,
+        V: 'a,
+    {
+        self.iter()
+    }
+    fn vec_swap_remove(&mut self, position: usize) -> (K, V) {
+        self.swap_remove(position)
+    }
+    fn vec_get(&self, index: usize) -> Option<&(K, V)> {
+        self.get(index)
+    }
+    fn vec_push(&mut self, value: (K, V)) {
+        self.push(value);
+    }
+}
+
+impl<K: BucketKeyReq, V, const N: usize> BucketInterface<K, V> for smallvec::SmallVec<(K, V), N> {
     fn len(&self) -> usize {
         self.len()
     }
@@ -79,6 +107,8 @@ impl<K: BucketKeyReq, V, BucketType: BucketContainerReq<K, V>> HashMapInsertTrai
 }
 
 pub type HashmapChainVec<K, V> = BucketSeperateChainHashMap<K, V, Vec<(K, V)>>;
+pub type HashmapChainSmallVec<K, V, const N: usize> =
+    BucketSeperateChainHashMap<K, V, smallvec::SmallVec<(K, V), N>>;
 
 #[derive(Debug)]
 pub struct BucketSeperateChainHashMap<K: BucketKeyReq, V, BucketType: BucketContainerReq<K, V>> {

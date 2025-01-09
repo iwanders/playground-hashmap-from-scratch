@@ -205,6 +205,7 @@ version = "0.1.0"
 dependencies = [
  "criterion",
  "rand",
+ "smallvec",
 ]
 
 [[package]]
@@ -468,6 +469,12 @@ dependencies = [
  "ryu",
  "serde",
 ]
+
+[[package]]
+name = "smallvec"
+version = "2.0.0-alpha.9"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "5e22442b16a0c1bfae679ffed8ec5e160ae2aa8495cea891f0d2ff7b84fe5c4c"
 
 [[package]]
 name = "syn"
