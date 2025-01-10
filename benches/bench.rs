@@ -132,6 +132,14 @@ default_benchmark!(
     1000,
     1_000
 );
+random_benchmark!(
+    criterion_bucket_separate_smallvec1_1k_rng,
+    BucketHashmapU64U64SmallVec1,
+    "BucketHashmapU64U64SmallVec1 1k rng",
+    1000,
+    1_000
+);
+
 default_benchmark!(
     criterion_bucket_separate_smallvec1_100k,
     BucketHashmapU64U64SmallVec1,
